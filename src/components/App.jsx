@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Notiflix from 'notiflix';
 import API from './API/PixabayService';
 
@@ -6,107 +6,100 @@ import ImageGallery from './Modules/ImageGallery/ImageGallery';
 import SearchBar from './Modules/Searchbar/Searchbar';
 import Button from './Modules/Button/Button';
 import { Loader } from './Modules/Loader/Loader';
+
 import Modal from './Modules/Modal/Modal';
+// import css from './app.css';
 
-class App extends Component {
-  state = {
-    modal: { isOpen: false, largeImageURL: '' },
-    images: [],
-    totalImages: 0,
-    currentPage: 1,
-    loading: false,
-    error: false,
-    hasSearched: false,
-    currentQuery: '', // Додайте поле для збереження поточного пошукового запиту
+const App = () => {
+  const [modal, setModal] = useState({ isOpen: false, largeImageURL: '' });
+  const [images, setImages] = useState([]);
+  const [totalImages, setTotalImages] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  
+
+  useEffect(() => {
+    if (!searchQuery) {
+      return;
+    }
+    fetchImages(searchQuery, currentPage);
+  }, [searchQuery, currentPage]);
+
+  //searchForm submit and setting query and page for the first search
+  const onSubmitSearch = query => {
+    setSearchQuery(query);
+    setImages([]);
+    setCurrentPage(1);
+    setTotalImages(0);
   };
 
-  setSearchFlag = () => {
-    this.setState({ hasSearched: true });
+  //uploading more pages upon current search
+  const onPageUpload = () => {
+    setCurrentPage(prevPage => prevPage + 1);
   };
 
-  fetchImages = async (query, page) => {
+  const fetchImages = async (query, page) => {
     try {
-      this.setState({ loading: true, currentQuery: query }); // Оновлюємо поточний запит
+      setLoading(true);
 
       const data = await API(query, page);
 
       if (data.totalHits === 0) {
         Notiflix.Notify.warning(
-          `There are no results for your query "${query}", please try again...`
+          `There is no results upon your ${query}, please try again...`
         );
         return;
       }
 
-      this.setState(prevState => {
-        return {
-          images: page === 1 ? data.hits : [...prevState.images, ...data.hits],
-          totalImages: data.totalHits,
-        };
+      setImages(prevState => {
+        return [...prevState, ...data.hits];
       });
 
-      if (page === 1) {
-        this.setSearchFlag();
-      }
+      setTotalImages(data.totalHits);
     } catch (error) {
-      this.setState({ error: true });
+      
     } finally {
-      this.setState({ loading: false });
+      setLoading(false);
     }
   };
 
-  componentDidUpdate(prevProps, prevState) {
-    const { currentQuery, currentPage } = this.state; // Використовуйте поточний запит для порівняння
-
-    if (
-      currentQuery !== prevState.currentQuery || // Порівнюйте поточний запит
-      currentPage !== prevState.currentPage
-    ) {
-      this.fetchImages(currentQuery, currentPage);
-    }
-  }
-
-  onSubmitSearch = query => {
-    this.setState({
-      images: [], // Очищаємо зображення при новому пошуковому запиті
-      currentPage: 1, // Скидаємо сторінку до першої при новому пошуковому запиті
+  //work with modal
+  const onModalOpen = data => {
+    setModal({
+      isOpen: true,
+      largeImageURL: data,
     });
+  };
 
+  const onModalClose = () => {
+    setModal({
+      isOpen: false,
+      largeImageURL: '',
+    });
+  };
+
+  const showBtn = !loading && images.length !== totalImages;
+
+  return (
+    <div>
+      <SearchBar onSubmit={onSubmitSearch} />
+      {loading && <Loader />}
+      {images.length > 0 && (
+        <ImageGallery images={images} onModalOpen={onModalOpen} />
+      )}
     
-  };
 
-  onPageUpload = () => {
-    const { currentQuery, currentPage, hasSearched } = this.state;
+      {showBtn && <Button onPageUpload={onPageUpload} />}
 
-    if (hasSearched && currentPage * 12 < this.state.totalImages) {
-      this.setState(prev => ({
-        currentPage: prev.currentPage + 1,
-      }));
-    }
-  };
-
-  render() {
-    const { images, loading, totalImages, modal } = this.state;
-    const showBtn = !loading && images.length !== totalImages;
-
-    return (
-      <div>
-        <SearchBar onSubmit={this.onSubmitSearch} />
-        {loading && <Loader />}
-        {images.length > 0 && (
-          <ImageGallery images={images} onModalOpen={this.onModalOpen} />
-        )}
-
-        {showBtn && <Button onPageUpload={this.onPageUpload} />}
-
-        {modal.isOpen && (
-          <Modal
-            largeImageURL={this.state.modal.largeImageURL}
-            onModalClose={this.onModalClose}
-          />
-        )}
-      </div>
-    );
-  }
-}
+      {modal.isOpen && (
+        <Modal
+          largeImageURL={modal.largeImageURL}
+          onModalClose={onModalClose}
+        />
+      )}
+    </div>
+  );
+};
 
 export default App;
