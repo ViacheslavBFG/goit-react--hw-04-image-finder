@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import css from './modal.module.css';
 
@@ -9,19 +9,22 @@ const Modal = ({ largeImageURL, onModalClose }) => {
     }
   };
 
-  const onKeyDown = e => {
-    if (e.keyCode === 27) {
-      onModalClose();
-    }
-  };
+  const handleKeyDown = useCallback(
+    e => {
+      if (e.keyCode === 27) {
+        onModalClose();
+      }
+    },
+    [onModalClose]
+  );
 
   useEffect(() => {
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []); // Empty dependency array to mimic componentDidMount and componentWillUnmount
+  }, [handleKeyDown]);
 
   return (
     <div className={css.overlay} onClick={onOverlayClick}>
